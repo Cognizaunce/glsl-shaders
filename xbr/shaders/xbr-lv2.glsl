@@ -288,6 +288,7 @@ void main()
 		i5 = mul( mat4x3(I5, C4, A1, G0), y_weight * Y );
 		h5 = mul( mat4x3(H5, F4, B1, D0), y_weight * Y );
 	}
+    f4 = h5.yzwx;
 
     // These inequations define the line below which interpolation occurs.
     fx   = (Ao*fp.y+Bo*fp.x); 
