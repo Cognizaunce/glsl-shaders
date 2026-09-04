@@ -23,7 +23,7 @@ Notes:  This shader does scaling with a weighted linear filter for adjustable
 #pragma parameter LOWLUMSCAN "Scanline Darkness - Low" 6.0 0.0 10.0 0.5
 #pragma parameter HILUMSCAN "Scanline Darkness - High" 8.0 0.0 50.0 1.0
 #pragma parameter BRIGHTBOOST "Dark Pixel Brightness Boost" 1.25 0.5 1.5 0.05
-#pragma parameter MASK_FADE "Mask/Scanline Fade" 0.8 0.0 1.0 0.05
+#pragma parameter SCAN_FADE "Scanline Fade" 0.8 0.0 1.0 0.05
 
 #if defined(VERTEX)
 
@@ -56,9 +56,9 @@ uniform COMPAT_PRECISION vec2 TextureSize;
 
 #ifdef PARAMETER_UNIFORM
 // All parameter floats need to have COMPAT_PRECISION in front of them
-uniform COMPAT_PRECISION float MASK_FADE;
+uniform COMPAT_PRECISION float SCAN_FADE;
 #else
-#define MASK_FADE 0.8
+#define SCAN_FADE 0.8
 #endif
 
 void main()
@@ -66,7 +66,7 @@ void main()
     gl_Position = MVPMatrix * VertexCoord;
 	
 	TEX0.xy = TexCoord.xy*1.0001;
-	maskFade = 0.3333*MASK_FADE;
+	maskFade = 0.3333*SCAN_FADE;
 	invDims = 1.0/TextureSize.xy;
 }
 
@@ -114,9 +114,9 @@ uniform COMPAT_PRECISION float LOWLUMSCAN;
 uniform COMPAT_PRECISION float HILUMSCAN;
 uniform COMPAT_PRECISION float BRIGHTBOOST;
 #else
-#define BLURSCALEX 0.45
-#define LOWLUMSCAN 5.0
-#define HILUMSCAN 10.0
+#define BLURSCALEX 0.3
+#define LOWLUMSCAN 6.0
+#define HILUMSCAN 8.0
 #define BRIGHTBOOST 1.25
 #endif
 
