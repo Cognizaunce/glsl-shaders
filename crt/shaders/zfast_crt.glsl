@@ -141,7 +141,7 @@ void main()
 	
 	COMPAT_PRECISION float scanLineWeight = (BRIGHTBOOST - LOWLUMSCAN*(Y - 2.05*YY));
 	COMPAT_PRECISION float scanLineWeightB = 1.0 - HILUMSCAN*(YY-2.8*YY*Y);
-	// Reuse f.x to darken each source pixel boundaries.
+	// Reuse f.x to darken source pixel boundaries.
 	COMPAT_PRECISION float vsepWeight = 1.0 - VSEP_STRENGTH*step(0.5 - 0.5*VSEP_WIDTH, abs(f.x));
 	FragColor.rgba = vec4(colour.rgb*mix(scanLineWeight, scanLineWeightB, dot(colour.rgb,vec3(maskFade)))*vsepWeight,1.0);
 	
