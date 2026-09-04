@@ -18,25 +18,11 @@ Notes:  This shader does scaling with a weighted linear filter for adjustable
 	resolutions (1920x1080 or 1600x1200).
 */
 
-//For testing compilation 
-//#define FRAGMENT
-//#define VERTEX
-
-//This can't be an option without slowing the shader down
-//Comment this out for a coarser 3 pixel mask...which is currently broken
-//on SNES Classic Edition due to Mali 400 gpu precision
-#define FINEMASK
-//Some drivers don't return black with texture coordinates out of bounds
-//SNES Classic is too slow to black these areas out when using fullscreen
-//overlays.  But you can uncomment the below to black them out if necessary
-//#define BLACK_OUT_BORDER
-
 // Parameter lines go here:
 #pragma parameter BLURSCALEX "Blur Amount X-Axis" 0.30 0.0 1.0 0.05
 #pragma parameter LOWLUMSCAN "Scanline Darkness - Low" 6.0 0.0 10.0 0.5
 #pragma parameter HILUMSCAN "Scanline Darkness - High" 8.0 0.0 50.0 1.0
 #pragma parameter BRIGHTBOOST "Dark Pixel Brightness Boost" 1.25 0.5 1.5 0.05
-#pragma parameter MASK_DARK "Mask Effect Amount" 0.25 0.0 1.0 0.05
 #pragma parameter MASK_FADE "Mask/Scanline Fade" 0.8 0.0 1.0 0.05
 
 #if defined(VERTEX)
@@ -44,11 +30,9 @@ Notes:  This shader does scaling with a weighted linear filter for adjustable
 #if __VERSION__ >= 130
 #define COMPAT_VARYING out
 #define COMPAT_ATTRIBUTE in
-#define COMPAT_TEXTURE texture
 #else
-#define COMPAT_VARYING varying 
-#define COMPAT_ATTRIBUTE attribute 
-#define COMPAT_TEXTURE texture2D
+#define COMPAT_VARYING varying
+#define COMPAT_ATTRIBUTE attribute
 #endif
 
 #ifdef GL_ES
@@ -62,42 +46,18 @@ Notes:  This shader does scaling with a weighted linear filter for adjustable
 #endif
 
 COMPAT_ATTRIBUTE vec4 VertexCoord;
-COMPAT_ATTRIBUTE vec4 COLOR;
 COMPAT_ATTRIBUTE vec4 TexCoord;
-COMPAT_VARYING vec4 COL0;
 COMPAT_VARYING vec4 TEX0;
 COMPAT_VARYING float maskFade;
 COMPAT_VARYING vec2 invDims;
 
-vec4 _oPosition1; 
 uniform mat4 MVPMatrix;
-uniform COMPAT_PRECISION int FrameDirection;
-uniform COMPAT_PRECISION int FrameCount;
-uniform COMPAT_PRECISION vec2 OutputSize;
 uniform COMPAT_PRECISION vec2 TextureSize;
-uniform COMPAT_PRECISION vec2 InputSize;
-
-// compatibility #defines
-#define vTexCoord TEX0.xy
-#define SourceSize vec4(TextureSize, 1.0 / TextureSize) //either TextureSize or InputSize
-#define OutSize vec4(OutputSize, 1.0 / OutputSize)
 
 #ifdef PARAMETER_UNIFORM
 // All parameter floats need to have COMPAT_PRECISION in front of them
-uniform COMPAT_PRECISION float BLURSCALEX;
-//uniform COMPAT_PRECISION float BLURSCALEY;
-uniform COMPAT_PRECISION float LOWLUMSCAN;
-uniform COMPAT_PRECISION float HILUMSCAN;
-uniform COMPAT_PRECISION float BRIGHTBOOST;
-uniform COMPAT_PRECISION float MASK_DARK;
 uniform COMPAT_PRECISION float MASK_FADE;
 #else
-#define BLURSCALEX 0.45
-//#define BLURSCALEY 0.20
-#define LOWLUMSCAN 5.0
-#define HILUMSCAN 10.0
-#define BRIGHTBOOST 1.25
-#define MASK_DARK 0.25
 #define MASK_FADE 0.8
 #endif
 
@@ -137,11 +97,7 @@ out COMPAT_PRECISION vec4 FragColor;
 #define COMPAT_TEXTURE texture2D
 #endif
 
-uniform COMPAT_PRECISION int FrameDirection;
-uniform COMPAT_PRECISION int FrameCount;
-uniform COMPAT_PRECISION vec2 OutputSize;
 uniform COMPAT_PRECISION vec2 TextureSize;
-uniform COMPAT_PRECISION vec2 InputSize;
 uniform sampler2D Texture;
 COMPAT_VARYING vec4 TEX0;
 COMPAT_VARYING float maskFade;
@@ -150,27 +106,18 @@ COMPAT_VARYING vec2 invDims;
 // compatibility #defines
 #define Source Texture
 #define vTexCoord TEX0.xy
-#define texture(c, d) COMPAT_TEXTURE(c, d)
-#define SourceSize vec4(TextureSize, 1.0 / TextureSize) //either TextureSize or InputSize
-#define OutSize vec4(OutputSize, 1.0 / OutputSize)
 
 #ifdef PARAMETER_UNIFORM
 // All parameter floats need to have COMPAT_PRECISION in front of them
 uniform COMPAT_PRECISION float BLURSCALEX;
-//uniform COMPAT_PRECISION float BLURSCALEY;
 uniform COMPAT_PRECISION float LOWLUMSCAN;
 uniform COMPAT_PRECISION float HILUMSCAN;
 uniform COMPAT_PRECISION float BRIGHTBOOST;
-uniform COMPAT_PRECISION float MASK_DARK;
-uniform COMPAT_PRECISION float MASK_FADE;
 #else
 #define BLURSCALEX 0.45
-//#define BLURSCALEY 0.20
 #define LOWLUMSCAN 5.0
 #define HILUMSCAN 10.0
 #define BRIGHTBOOST 1.25
-#define MASK_DARK 0.25
-#define MASK_FADE 0.8
 #endif
 
 void main()
@@ -184,24 +131,11 @@ void main()
 	p.x = mix( p.x , vTexCoord.x, BLURSCALEX);
 	COMPAT_PRECISION float Y = f.y*f.y;
 	COMPAT_PRECISION float YY = Y*Y;
-#define ratio SourceSize.x/InputSize.x	
-#if defined(FINEMASK) 
-	COMPAT_PRECISION float whichmask = floor(vTexCoord.x*OutputSize.x*ratio)*-0.5;
-	COMPAT_PRECISION float mask = 1.0 + float(fract(whichmask) < 0.5) * -MASK_DARK;
-#else
-	COMPAT_PRECISION float whichmask = floor(vTexCoord.x*OutputSize.x*ratio)*-0.3333;
-	COMPAT_PRECISION float mask = 1.0 + float(fract(whichmask) < 0.3333) * -MASK_DARK;
-#endif
 	COMPAT_PRECISION vec3 colour = COMPAT_TEXTURE(Source, p).rgb;
 	
 	COMPAT_PRECISION float scanLineWeight = (BRIGHTBOOST - LOWLUMSCAN*(Y - 2.05*YY));
 	COMPAT_PRECISION float scanLineWeightB = 1.0 - HILUMSCAN*(YY-2.8*YY*Y);	
-	
-#if defined(BLACK_OUT_BORDER)
-	colour.rgb*=float(tc.x > 0.0)*float(tc.y > 0.0); //why doesn't the driver do the right thing?
-#endif
-
-	FragColor.rgba = vec4(colour.rgb*mix(scanLineWeight*mask, scanLineWeightB, dot(colour.rgb,vec3(maskFade))),1.0);
+	FragColor.rgba = vec4(colour.rgb*mix(scanLineWeight, scanLineWeightB, dot(colour.rgb,vec3(maskFade))),1.0);
 	
 } 
 #endif
