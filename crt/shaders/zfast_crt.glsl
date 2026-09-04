@@ -24,6 +24,8 @@ Notes:  This shader does scaling with a weighted linear filter for adjustable
 #pragma parameter HILUMSCAN "Scanline Darkness - High" 8.0 0.0 50.0 1.0
 #pragma parameter BRIGHTBOOST "Dark Pixel Brightness Boost" 1.25 0.5 1.5 0.05
 #pragma parameter SCAN_FADE "Scanline Fade" 0.8 0.0 1.0 0.05
+#pragma parameter VSEP_STRENGTH "Vertical Separation Strength" 0.03 0.0 1.0 0.01
+#pragma parameter VSEP_WIDTH "Vertical Separation Width" 0.18 0.02 0.80 0.01
 
 #if defined(VERTEX)
 
@@ -113,11 +115,15 @@ uniform COMPAT_PRECISION float BLURSCALEX;
 uniform COMPAT_PRECISION float LOWLUMSCAN;
 uniform COMPAT_PRECISION float HILUMSCAN;
 uniform COMPAT_PRECISION float BRIGHTBOOST;
+uniform COMPAT_PRECISION float VSEP_STRENGTH;
+uniform COMPAT_PRECISION float VSEP_WIDTH;
 #else
 #define BLURSCALEX 0.3
 #define LOWLUMSCAN 6.0
 #define HILUMSCAN 8.0
 #define BRIGHTBOOST 1.25
+#define VSEP_STRENGTH 0.03
+#define VSEP_WIDTH 0.18
 #endif
 
 void main()
@@ -134,8 +140,10 @@ void main()
 	COMPAT_PRECISION vec3 colour = COMPAT_TEXTURE(Source, p).rgb;
 	
 	COMPAT_PRECISION float scanLineWeight = (BRIGHTBOOST - LOWLUMSCAN*(Y - 2.05*YY));
-	COMPAT_PRECISION float scanLineWeightB = 1.0 - HILUMSCAN*(YY-2.8*YY*Y);	
-	FragColor.rgba = vec4(colour.rgb*mix(scanLineWeight, scanLineWeightB, dot(colour.rgb,vec3(maskFade))),1.0);
+	COMPAT_PRECISION float scanLineWeightB = 1.0 - HILUMSCAN*(YY-2.8*YY*Y);
+	// Reuse f.x to darken each source pixel boundaries.
+	COMPAT_PRECISION float vsepWeight = 1.0 - VSEP_STRENGTH*step(0.5 - 0.5*VSEP_WIDTH, abs(f.x));
+	FragColor.rgba = vec4(colour.rgb*mix(scanLineWeight, scanLineWeightB, dot(colour.rgb,vec3(maskFade)))*vsepWeight,1.0);
 	
 } 
 #endif
