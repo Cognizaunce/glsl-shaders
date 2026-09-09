@@ -49,10 +49,11 @@ Notes:  This shader does scaling with a weighted linear filter for adjustable
 
 COMPAT_ATTRIBUTE vec4 VertexCoord;
 COMPAT_ATTRIBUTE vec4 TexCoord;
-COMPAT_VARYING vec4 TEX0;
-COMPAT_VARYING float maskFade;
-COMPAT_VARYING vec2 invDims;
-COMPAT_VARYING float vsepScale;
+COMPAT_VARYING COMPAT_PRECISION vec2 TEX0;
+COMPAT_VARYING COMPAT_PRECISION float maskFade;
+COMPAT_VARYING COMPAT_PRECISION vec2 invDims;
+COMPAT_VARYING COMPAT_PRECISION float vsepScale;
+COMPAT_VARYING COMPAT_PRECISION vec4 vsepLocal;
 
 uniform mat4 MVPMatrix;
 uniform COMPAT_PRECISION vec2 TextureSize;
@@ -68,10 +69,14 @@ uniform COMPAT_PRECISION float SCAN_FADE;
 void main()
 {
     gl_Position = MVPMatrix * VertexCoord;
-	TEX0.xy = TexCoord.xy*1.0001;
+	TEX0 = TexCoord.xy*1.0001;
 	maskFade = 0.3333*SCAN_FADE;
 	invDims = 1.0/TextureSize.xy;
 	vsepScale = OutputSize.x * invDims.x;
+
+	// Center four coordinates before interpolation to preserve local detail.
+	vsepLocal = vec4(TexCoord.x*1.0001) -
+		vec4(0.125, 0.375, 0.625, 0.875);
 }
 
 #elif defined(FRAGMENT)
@@ -103,14 +108,15 @@ out COMPAT_PRECISION vec4 FragColor;
 
 uniform COMPAT_PRECISION vec2 TextureSize;
 uniform sampler2D Texture;
-COMPAT_VARYING vec4 TEX0;
-COMPAT_VARYING float maskFade;
-COMPAT_VARYING vec2 invDims;
-COMPAT_VARYING float vsepScale;
+COMPAT_VARYING COMPAT_PRECISION vec2 TEX0;
+COMPAT_VARYING COMPAT_PRECISION float maskFade;
+COMPAT_VARYING COMPAT_PRECISION vec2 invDims;
+COMPAT_VARYING COMPAT_PRECISION float vsepScale;
+COMPAT_VARYING COMPAT_PRECISION vec4 vsepLocal;
 
 // compatibility #defines
 #define Source Texture
-#define vTexCoord TEX0.xy
+#define vTexCoord TEX0
 
 #ifdef PARAMETER_UNIFORM
 // All parameter floats need to have COMPAT_PRECISION in front of them
@@ -147,8 +153,28 @@ void main()
 	COMPAT_PRECISION float scanLineWeight =	BRIGHTBOOST - LOWLUMSCAN*(Y - 2.05*YY);
 	COMPAT_PRECISION float scanLineWeightB = 1.0 - HILUMSCAN*(YY - 2.8*YY*Y);
 
-	// Vertical separation: estimate separator coverage of each output pixel.
-	COMPAT_PRECISION float distToEdge = 0.5 - abs(f.x);
+	// Vertical separation:
+
+	// 1. Select the local coordinate and anchor for this quarter of the texture.
+	COMPAT_PRECISION float sel1 = step(0.25, vTexCoord.x);
+	COMPAT_PRECISION float sel2 = step(0.50, vTexCoord.x);
+	COMPAT_PRECISION float sel3 = step(0.75, vTexCoord.x);
+	COMPAT_PRECISION float localX = mix(
+		mix(vsepLocal.x, vsepLocal.y, sel1),
+		mix(vsepLocal.z, vsepLocal.w, sel3),
+		sel2
+	);
+	COMPAT_PRECISION float anchorX =
+		0.125 + 0.25*(sel1 + sel2 + sel3);
+
+	// 2. Recover source-pixel phase and distance to the nearest boundary.
+	COMPAT_PRECISION float phase = fract(
+		localX*TextureSize.x +
+		fract(anchorX*TextureSize.x)
+	);
+	COMPAT_PRECISION float distToEdge = min(phase, 1.0 - phase);
+
+	// 3. Filter separator coverage and apply the requested strength.
 	COMPAT_PRECISION float maxCoverage = min(1.0, VSEP_WIDTH*vsepScale);
 	COMPAT_PRECISION float vsep = clamp(
 		(0.5*VSEP_WIDTH - distToEdge)*vsepScale + 0.5,
@@ -156,7 +182,7 @@ void main()
 	);
 	COMPAT_PRECISION float vsepWeight = 1.0 - VSEP_STRENGTH*vsep;
 
-	// Apply effects and output final color.
+	// Apply all effects and output final color.
 	FragColor.rgba = vec4(
 		colour.rgb *
 		mix(scanLineWeight, scanLineWeightB, dot(colour.rgb, vec3(maskFade))) *
