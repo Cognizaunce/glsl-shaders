@@ -24,7 +24,7 @@ Notes:  This shader does scaling with a weighted linear filter for adjustable
 #pragma parameter HILUMSCAN "Scanline Darkness - High" 8.0 0.0 50.0 1.0
 #pragma parameter BRIGHTBOOST "Dark Pixel Brightness Boost" 1.25 0.5 1.5 0.05
 #pragma parameter SCAN_FADE "Scanline Fade" 0.8 0.0 1.0 0.05
-#pragma parameter VSEP_STRENGTH "Vertical Separation Strength" 0.2 0.0 1.0 0.05
+#pragma parameter VSEP_STRENGTH "Vertical Separation Strength" 0.25 0.0 1.0 0.05
 #pragma parameter VSEP_WIDTH "Vertical Separation Width" 0.18 0.02 0.6 0.02
 
 #if defined(VERTEX)
@@ -131,7 +131,7 @@ uniform COMPAT_PRECISION float VSEP_WIDTH;
 #define LOWLUMSCAN 6.0
 #define HILUMSCAN 8.0
 #define BRIGHTBOOST 1.25
-#define VSEP_STRENGTH 0.2
+#define VSEP_STRENGTH 0.25
 #define VSEP_WIDTH 0.18
 #endif
 
