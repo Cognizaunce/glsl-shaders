@@ -56,7 +56,6 @@ COMPAT_VARYING float vsepScale;
 
 uniform mat4 MVPMatrix;
 uniform COMPAT_PRECISION vec2 TextureSize;
-uniform COMPAT_PRECISION vec2 InputSize;
 uniform COMPAT_PRECISION vec2 OutputSize;
 
 #ifdef PARAMETER_UNIFORM
