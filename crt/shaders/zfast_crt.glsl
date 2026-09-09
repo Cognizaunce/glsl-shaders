@@ -52,6 +52,7 @@ COMPAT_ATTRIBUTE vec4 TexCoord;
 COMPAT_VARYING vec4 TEX0;
 COMPAT_VARYING float maskFade;
 COMPAT_VARYING vec2 invDims;
+COMPAT_VARYING float vsepScale;
 
 uniform mat4 MVPMatrix;
 uniform COMPAT_PRECISION vec2 TextureSize;
@@ -68,9 +69,10 @@ uniform COMPAT_PRECISION float SCAN_FADE;
 void main()
 {
     gl_Position = MVPMatrix * VertexCoord;
-	TEX0.xy = TexCoord.xy;
+	TEX0.xy = TexCoord.xy*1.0001;
 	maskFade = 0.3333*SCAN_FADE;
 	invDims = 1.0/TextureSize.xy;
+	vsepScale = OutputSize.x * invDims.x;
 }
 
 #elif defined(FRAGMENT)
@@ -101,12 +103,11 @@ out COMPAT_PRECISION vec4 FragColor;
 #endif
 
 uniform COMPAT_PRECISION vec2 TextureSize;
-uniform COMPAT_PRECISION vec2 InputSize;
-uniform COMPAT_PRECISION vec2 OutputSize;
 uniform sampler2D Texture;
 COMPAT_VARYING vec4 TEX0;
 COMPAT_VARYING float maskFade;
 COMPAT_VARYING vec2 invDims;
+COMPAT_VARYING float vsepScale;
 
 // compatibility #defines
 #define Source Texture
@@ -133,7 +134,7 @@ void main()
 {
 	// Shared coordinates: source-pixel position, center, and offset from center.
 	COMPAT_PRECISION vec2 p = vTexCoord * TextureSize;
-	COMPAT_PRECISION vec2 i = floor(p) + 0.5;
+	COMPAT_PRECISION vec2 i = floor(p) + 0.50;
 	COMPAT_PRECISION vec2 f = p - i;
 
 	// This is just like "Quilez Scaling" but sharper
@@ -148,19 +149,7 @@ void main()
 	COMPAT_PRECISION float scanLineWeightB = 1.0 - HILUMSCAN*(YY - 2.8*YY*Y);
 
 	// Vertical separation: estimate separator coverage of each output pixel.
-	const COMPAT_PRECISION float VSEP_BLOCK = 32.0;
-	COMPAT_PRECISION float inputNormX = vTexCoord.x*(TextureSize.x/InputSize.x);
-	COMPAT_PRECISION float blockX = inputNormX*VSEP_BLOCK;
-	COMPAT_PRECISION float blockIndex = floor(blockX);
-	COMPAT_PRECISION float blockFrac = blockX - blockIndex;
-	COMPAT_PRECISION float wholeBlocks = floor(InputSize.x/VSEP_BLOCK);
-	COMPAT_PRECISION float remainder = InputSize.x - wholeBlocks*VSEP_BLOCK;
-	COMPAT_PRECISION float phase = fract(
-		blockFrac*wholeBlocks +
-		(blockIndex + blockFrac)*(remainder/VSEP_BLOCK)
-	);
-	COMPAT_PRECISION float distToEdge = min(phase, 1.0 - phase);
-	COMPAT_PRECISION float vsepScale = OutputSize.x/InputSize.x;
+	COMPAT_PRECISION float distToEdge = 0.5 - abs(f.x);
 	COMPAT_PRECISION float maxCoverage = min(1.0, VSEP_WIDTH*vsepScale);
 	COMPAT_PRECISION float vsep = clamp(
 		(0.5*VSEP_WIDTH - distToEdge)*vsepScale + 0.5,
