@@ -53,7 +53,7 @@ COMPAT_VARYING COMPAT_PRECISION vec2 TEX0;
 COMPAT_VARYING COMPAT_PRECISION float maskFade;
 COMPAT_VARYING COMPAT_PRECISION vec2 invDims;
 COMPAT_VARYING COMPAT_PRECISION float vsepScale;
-COMPAT_VARYING COMPAT_PRECISION vec4 vsepLocal;
+COMPAT_VARYING COMPAT_PRECISION vec2 vsepLocal;
 
 uniform mat4 MVPMatrix;
 uniform COMPAT_PRECISION vec2 TextureSize;
@@ -74,9 +74,9 @@ void main()
 	invDims = 1.0/TextureSize.xy;
 	vsepScale = OutputSize.x * invDims.x;
 
-	// Center four coordinates before interpolation to preserve local detail.
-	vsepLocal = vec4(TexCoord.x*1.0001) -
-		vec4(0.125, 0.375, 0.625, 0.875);
+	// Center two coordinates before interpolation to preserve local detail.
+	vsepLocal = vec2(TexCoord.x*1.0001) -
+		vec2(0.25, 0.75);
 }
 
 #elif defined(FRAGMENT)
@@ -112,7 +112,7 @@ COMPAT_VARYING COMPAT_PRECISION vec2 TEX0;
 COMPAT_VARYING COMPAT_PRECISION float maskFade;
 COMPAT_VARYING COMPAT_PRECISION vec2 invDims;
 COMPAT_VARYING COMPAT_PRECISION float vsepScale;
-COMPAT_VARYING COMPAT_PRECISION vec4 vsepLocal;
+COMPAT_VARYING COMPAT_PRECISION vec2 vsepLocal;
 
 // compatibility #defines
 #define Source Texture
@@ -155,17 +155,10 @@ void main()
 
 	// Vertical separation:
 
-	// 1. Select the local coordinate and anchor for this quarter of the texture.
-	COMPAT_PRECISION float sel1 = step(0.25, vTexCoord.x);
-	COMPAT_PRECISION float sel2 = step(0.50, vTexCoord.x);
-	COMPAT_PRECISION float sel3 = step(0.75, vTexCoord.x);
-	COMPAT_PRECISION float localX = mix(
-		mix(vsepLocal.x, vsepLocal.y, sel1),
-		mix(vsepLocal.z, vsepLocal.w, sel3),
-		sel2
-	);
-	COMPAT_PRECISION float anchorX =
-		0.125 + 0.25*(sel1 + sel2 + sel3);
+	// 1. Select the local coordinate and anchor for this half of the texture.
+	COMPAT_PRECISION float sel = step(0.5, vTexCoord.x);
+	COMPAT_PRECISION float localX = mix(vsepLocal.x, vsepLocal.y, sel);
+	COMPAT_PRECISION float anchorX = 0.25 + 0.5*sel;
 
 	// 2. Recover source-pixel phase and distance to the nearest boundary.
 	COMPAT_PRECISION float phase = fract(
