@@ -27,6 +27,12 @@ Notes:  This shader does scaling with a weighted linear filter for adjustable
 #pragma parameter VSEP_STRENGTH "Vertical Separation Strength" 0.25 0.0 1.0 0.05
 #pragma parameter VSEP_WIDTH "Vertical Separation Width" 0.18 0.02 0.6 0.02
 
+// Use direct coordinates when fragment high precision is available.
+// Otherwise preserve local detail with two independently interpolated halves.
+#if !defined(GL_ES) || defined(GL_FRAGMENT_PRECISION_HIGH)
+#define VSEP_FULL_PRECISION
+#endif
+
 #if defined(VERTEX)
 
 #if __VERSION__ >= 130
@@ -53,7 +59,9 @@ COMPAT_VARYING COMPAT_PRECISION vec2 TEX0;
 COMPAT_VARYING COMPAT_PRECISION float maskFade;
 COMPAT_VARYING COMPAT_PRECISION vec2 invDims;
 COMPAT_VARYING COMPAT_PRECISION float vsepScale;
+#ifndef VSEP_FULL_PRECISION
 COMPAT_VARYING COMPAT_PRECISION vec2 vsepLocal;
+#endif
 
 uniform mat4 MVPMatrix;
 uniform COMPAT_PRECISION vec2 TextureSize;
@@ -74,9 +82,10 @@ void main()
 	invDims = 1.0/TextureSize.xy;
 	vsepScale = OutputSize.x * invDims.x;
 
+#ifndef VSEP_FULL_PRECISION
 	// Center two coordinates before interpolation to preserve local detail.
-	vsepLocal = vec2(TexCoord.x*1.0001) -
-		vec2(0.25, 0.75);
+	vsepLocal = vec2(TexCoord.x*1.0001) - vec2(0.25, 0.75);
+#endif
 }
 
 #elif defined(FRAGMENT)
@@ -112,7 +121,9 @@ COMPAT_VARYING COMPAT_PRECISION vec2 TEX0;
 COMPAT_VARYING COMPAT_PRECISION float maskFade;
 COMPAT_VARYING COMPAT_PRECISION vec2 invDims;
 COMPAT_VARYING COMPAT_PRECISION float vsepScale;
+#ifndef VSEP_FULL_PRECISION
 COMPAT_VARYING COMPAT_PRECISION vec2 vsepLocal;
+#endif
 
 // compatibility #defines
 #define Source Texture
@@ -155,19 +166,24 @@ void main()
 
 	// Vertical separation:
 
-	// 1. Select the local coordinate and anchor for this half of the texture.
+#ifdef VSEP_FULL_PRECISION
+	// Reuse the source-pixel offset already calculated for image filtering.
+	COMPAT_PRECISION float distToEdge = 0.5 - abs(f.x);
+#else
+	// Select the local coordinate and anchor for this half of the texture.
 	COMPAT_PRECISION float sel = step(0.5, vTexCoord.x);
 	COMPAT_PRECISION float localX = mix(vsepLocal.x, vsepLocal.y, sel);
 	COMPAT_PRECISION float anchorX = 0.25 + 0.5*sel;
 
-	// 2. Recover source-pixel phase and distance to the nearest boundary.
+	// Recover source-pixel phase and distance to the nearest boundary.
 	COMPAT_PRECISION float phase = fract(
 		localX*TextureSize.x +
 		fract(anchorX*TextureSize.x)
 	);
 	COMPAT_PRECISION float distToEdge = min(phase, 1.0 - phase);
+#endif
 
-	// 3. Filter separator coverage and apply the requested strength.
+	// Filter separator coverage and apply the requested strength.
 	COMPAT_PRECISION float maxCoverage = min(1.0, VSEP_WIDTH*vsepScale);
 	COMPAT_PRECISION float vsep = clamp(
 		(0.5*VSEP_WIDTH - distToEdge)*vsepScale + 0.5,
